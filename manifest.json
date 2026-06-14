@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Checkee Graph",
+  "version": "0.1.0",
+  "description": "Interactive weekly visa-clearance bar charts for Checkee.",
+  "permissions": ["storage", "unlimitedStorage"],
+  "host_permissions": [
+    "https://www.checkee.info/*",
+    "https://checkee.info/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.checkee.info/*",
+        "https://checkee.info/*"
+      ],
+      "js": ["content.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
