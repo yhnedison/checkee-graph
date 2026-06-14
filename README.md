@@ -93,7 +93,7 @@ Interactive Chrome extension for visualizing Checkee visa-clearance trends with 
 
 ### License
 
-No license has been selected yet. Add a license before publishing if you want others to reuse or modify the project.
+This project is released under the [MIT License](LICENSE).
 
 ## 中文
 
@@ -186,4 +186,4 @@ checkee-graph/
 
 ### 许可证
 
-暂时还没有选择许可证。如果你希望其他人复用或修改这个项目，发布前建议添加一个 license。
+本项目使用 [MIT License](LICENSE) 发布。
