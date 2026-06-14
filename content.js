@@ -213,6 +213,12 @@
 
   async function discoverRecords() {
     const monthly = await loadMonthlyPages();
+    if (monthly.errors.length) {
+      const loadedText = monthly.records.length
+        ? `${monthly.records.length.toLocaleString()} raw rows were loaded before the failure, but the pull is incomplete. `
+        : "";
+      throw new Error(`${loadedText}Monthly pull incomplete; cache was not overwritten. ${monthly.errors.slice(0, 3).join(" | ")}`);
+    }
     if (monthly.records.length) {
       return monthly;
     }
@@ -943,32 +949,42 @@
         const dayOnly = allowDayOnly ? text.match(/^\s*(\d{1,2})\s*$/) : null;
         if (dayOnly) {
           const day = Number(dayOnly[1]);
-          if (day >= 1 && day <= 31) return new Date(Date.UTC(sourceYear, sourceMonthNumber - 1, day));
+          const date = utcDateOrNull(sourceYear, sourceMonthNumber, day);
+          if (date) return date;
         }
         const monthDay = text.match(/\b(\d{1,2})[-/](\d{1,2})\b/);
         if (monthDay && !/\d{4}/.test(text)) {
           const first = Number(monthDay[1]);
           const second = Number(monthDay[2]);
-          if (first === sourceMonthNumber && second >= 1 && second <= 31) {
-            return new Date(Date.UTC(sourceYear, sourceMonthNumber - 1, second));
+          if (first === sourceMonthNumber) {
+            const date = utcDateOrNull(sourceYear, sourceMonthNumber, second);
+            if (date) return date;
           }
-          if (second === sourceMonthNumber && first >= 1 && first <= 31) {
-            return new Date(Date.UTC(sourceYear, sourceMonthNumber - 1, first));
+          if (second === sourceMonthNumber) {
+            const date = utcDateOrNull(sourceYear, sourceMonthNumber, first);
+            if (date) return date;
           }
         }
       }
     }
     const isoLike = text.match(/(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/);
     if (isoLike) {
-      return new Date(Date.UTC(Number(isoLike[1]), Number(isoLike[2]) - 1, Number(isoLike[3])));
+      return utcDateOrNull(Number(isoLike[1]), Number(isoLike[2]), Number(isoLike[3]));
     }
     const usLike = text.match(/\b(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b/);
     if (usLike) {
       const year = Number(usLike[3].length === 2 ? `20${usLike[3]}` : usLike[3]);
-      return new Date(Date.UTC(year, Number(usLike[1]) - 1, Number(usLike[2])));
+      return utcDateOrNull(year, Number(usLike[1]), Number(usLike[2]));
     }
     const parsed = new Date(text);
     return Number.isNaN(parsed.valueOf()) ? null : startOfDay(parsed);
+  }
+
+  function utcDateOrNull(year, monthNumber, day) {
+    if (!Number.isInteger(year) || !Number.isInteger(monthNumber) || !Number.isInteger(day)) return null;
+    if (monthNumber < 1 || monthNumber > 12 || day < 1) return null;
+    if (day > daysInMonth(year, monthNumber - 1)) return null;
+    return new Date(Date.UTC(year, monthNumber - 1, day));
   }
 
   function isDateishKey(key) {
@@ -1015,7 +1031,7 @@
     if (state.timeRange === "1y") return maxDate(START_DATE, addYears(today, -1));
     if (state.timeRange === "2y") return maxDate(START_DATE, addYears(today, -2));
     if (state.timeRange === "5y") return maxDate(START_DATE, addYears(today, -5));
-    return earliestLoadedDate() || START_DATE;
+    return START_DATE;
   }
 
   function requestedStartDate() {
@@ -1066,7 +1082,7 @@
     if (!cached || !Array.isArray(cached.records) || !cached.records.length || state.loading || (!options.replace && state.records.length)) {
       return false;
     }
-    if (cached.startDate !== isoDate(monthStart(displayStartDate()))) {
+    if (cached.startDate !== cacheStartDate()) {
       state.lastError = `Ignored stale cache starting at ${cached.startDate || "unknown"}; click Refresh to build the ${timeRangeLabel()} cache.`;
       renderData();
       return false;
@@ -1086,10 +1102,14 @@
       source,
       pullComplete: true,
       savedAt: new Date().toISOString(),
-      startDate: isoDate(monthStart(displayStartDate())),
+      startDate: cacheStartDate(),
       timeRange: state.timeRange,
       endDate: isoDate(new Date())
     });
+  }
+
+  function cacheStartDate() {
+    return isoDate(monthStart(requestedStartDate()));
   }
 
   function readStorage(key) {
@@ -1189,11 +1209,20 @@
   }
 
   function addMonths(date, months) {
-    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, date.getUTCDate()));
+    const targetMonthStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+    const day = Math.min(date.getUTCDate(), daysInMonth(targetMonthStart.getUTCFullYear(), targetMonthStart.getUTCMonth()));
+    return new Date(Date.UTC(targetMonthStart.getUTCFullYear(), targetMonthStart.getUTCMonth(), day));
   }
 
   function addYears(date, years) {
-    return new Date(Date.UTC(date.getUTCFullYear() + years, date.getUTCMonth(), date.getUTCDate()));
+    const year = date.getUTCFullYear() + years;
+    const month = date.getUTCMonth();
+    const day = Math.min(date.getUTCDate(), daysInMonth(year, month));
+    return new Date(Date.UTC(year, month, day));
+  }
+
+  function daysInMonth(year, monthIndex) {
+    return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
   }
 
   function delay(ms) {

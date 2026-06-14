@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Checkee Graph",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Interactive weekly visa-clearance bar charts for Checkee.",
   "permissions": ["storage", "unlimitedStorage"],
   "host_permissions": [
