@@ -771,6 +771,39 @@
           stackBottom -= barHeight;
         });
       });
+    } else if (metric === "newVsCleared") {
+      const barWidth = weekColumnWidthValue;
+      const overlayWidth = Math.max(1, barWidth * 0.64);
+      state.weeks.forEach((week, weekIndex) => {
+        const newItem = series[0];
+        const clearedItem = series[1];
+        const newValue = newItem ? newItem.values[weekIndex] || 0 : 0;
+        const clearedValue = clearedItem ? clearedItem.values[weekIndex] || 0 : 0;
+        if (!newValue && !clearedValue) return;
+        const tooltipText = newVsClearedTooltip(week, newValue, clearedValue);
+        [
+          { item: newItem, value: newValue },
+          { item: clearedItem, value: clearedValue }
+        ]
+          .filter(entry => entry.item && entry.value)
+          .sort((a, b) => b.value - a.value)
+          .forEach((entry, entryIndex) => {
+            const rectWidth = entryIndex === 0 ? barWidth : overlayWidth;
+            const barHeight = Math.max(1, (entry.value / maxValue) * innerHeight);
+            const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            rect.setAttribute("x", String(groupCenter(weekIndex) - rectWidth / 2));
+            rect.setAttribute("y", String(height - margin.bottom - barHeight));
+            rect.setAttribute("width", String(rectWidth));
+            rect.setAttribute("height", String(barHeight));
+            rect.setAttribute("rx", "2");
+            rect.setAttribute("fill", entry.item.color);
+            rect.setAttribute("fill-opacity", entryIndex === 0 ? "0.72" : "0.92");
+            rect.setAttribute("tabindex", "0");
+            rect.dataset.caBar = "true";
+            rect.dataset.tooltip = tooltipText;
+            svg.appendChild(rect);
+          });
+      });
     } else {
       const groupWidth = weekColumnWidthValue;
       const barGap = groupWidth >= 8 ? 2 : groupWidth >= 4 ? 1 : 0;
@@ -1071,6 +1104,17 @@
 
   function countRecords(predicate) {
     return filteredRecords().reduce((total, record) => total + (predicate(record) ? 1 : 0), 0);
+  }
+
+  function newVsClearedTooltip(week, newValue, clearedValue) {
+    const net = newValue - clearedValue;
+    return [
+      "New vs cleared cases",
+      `${formatWeek(week)}`,
+      `New cases: ${newValue.toLocaleString()}`,
+      `Cleared cases: ${clearedValue.toLocaleString()}`,
+      `Net: ${formatSigned(net)}`
+    ].join("\n");
   }
 
   function waitStatsForWeeks(weeks, options = {}) {

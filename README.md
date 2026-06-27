@@ -13,7 +13,7 @@ Checkee Graph is a lightweight Chrome extension that adds an expandable analytic
 - Weekly cleared cases by visa type, shown as stacked bar charts.
 - Average waiting days on the weekly cleared-case and long-wait charts, shown as a solid right-axis line with median and P90 in the hover tooltip.
 - Weekly long-wait clearances by visa type, where long-wait means 30 or more days from case creation/submission to clearance.
-- Weekly new cases vs cleared cases, shown as grouped bar charts.
+- Weekly new cases vs cleared cases, shown as overlapped bars where the exposed height difference shows the net change.
 - Weekly net case change for the selected time range, using the range start as zero point and showing the total net change through now.
 - Time range selector: last 6 months, last 1 year, last 2 years, last 5 years, and max.
 - Sidebar filters for visa type and location, including common locations such as Guangzhou and Beijing.
@@ -109,7 +109,7 @@ Checkee Graph 是一个轻量级 Chrome 扩展，会在 `checkee.info` 页面顶
 - 按签证类型统计每周 clear 数量，并用堆叠柱状图展示。
 - 在每周 clear 图和 long-wait 图中用右轴实线展示平均等待天数，hover 时显示 median 和 P90。
 - 统计长等待 clear 案例，长等待定义为从提交/创建到 clear 间隔大于等于 30 天。
-- 展示每周新增 case 与 clear case 的对比。
+- 展示每周新增 case 与 clear case 的对比，用重叠柱展示净差高度。
 - 按当前选择的 time range，以起始时间为 0 点，计算每周 case 净增减以及累计净增减。
 - 支持时间范围：最近 6 个月、最近 1 年、最近 2 年、最近 5 年、最大范围。
 - 左侧栏支持按签证类型和地点筛选，例如 Guangzhou、Beijing。
