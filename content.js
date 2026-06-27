@@ -709,7 +709,7 @@
       : Math.max(1, ...visibleSeries.flatMap(item => item.values));
     const width = 1040;
     const height = 360;
-    const margin = { top: 14, right: hasWaitLine ? 96 : 22, bottom: 46, left: 48 };
+    const margin = { top: hasWaitLine ? 34 : 14, right: hasWaitLine ? 112 : 22, bottom: 46, left: 48 };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
     const weekBand = innerWidth / Math.max(1, state.weeks.length);
@@ -732,7 +732,7 @@
       <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${height - margin.bottom}" stroke="#94a3b8" />
       ${hasWaitLine ? `
         <line x1="${width - margin.right}" y1="${margin.top}" x2="${width - margin.right}" y2="${height - margin.bottom}" stroke="#f59e0b" />
-        <text x="${width - margin.right}" y="${margin.top - 4}" text-anchor="middle" fill="#b45309" font-size="10" font-weight="700">${escapeHtml(waitAxisLabel(metric))}</text>
+        <text x="${width - margin.right + 10}" y="${margin.top - 16}" text-anchor="start" fill="#b45309" font-size="10" font-weight="700">${escapeHtml(waitAxisLabel(metric))}</text>
         ${waitTicks.map(value => `
           <text x="${width - margin.right + 10}" y="${waitY(value) + 4}" text-anchor="start" fill="#b45309" font-size="11">${formatDaysTick(value)}</text>
         `).join("")}
@@ -1495,10 +1495,10 @@
   }
 
   function titleForMetric(metric) {
-    if (metric === "longWaitByVisa") return "Long-wait (>= 30 days) clearance per week, by visa type, with average waiting days";
+    if (metric === "longWaitByVisa") return "Weekly long-wait cleared cases by visa type";
     if (metric === "newVsCleared") return "New case vs cleared case per week";
     if (metric === "netChangeSinceBase") return `Weekly net case change from ${formatWeek(displayStartDate())}`;
-    return "Case cleared per week, by visa type, with average waiting days";
+    return "Weekly cleared cases by visa type";
   }
 
   function waitLineLabel(metric) {
@@ -1506,7 +1506,7 @@
   }
 
   function waitAxisLabel(metric) {
-    return metric === "longWaitByVisa" ? "Avg long-wait days" : "Avg wait days";
+    return metric === "longWaitByVisa" ? "Avg waiting days (long-wait)" : "Avg waiting days";
   }
 
   function chartTitleForMetric(metric) {
