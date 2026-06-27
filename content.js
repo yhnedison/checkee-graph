@@ -24,7 +24,9 @@
     records: [],
     weeks: weeksBetween(START_DATE, new Date()),
     visaTypes: [],
+    locations: [],
     selectedVisaType: null,
+    selectedLocation: null,
     timeRange: "1y",
     pullComplete: false,
     source: "Not loaded",
@@ -41,6 +43,28 @@
       "category",
       "签证类型",
       "visa_category"
+    ],
+    location: [
+      "location",
+      "loc",
+      "city",
+      "post",
+      "consulate",
+      "consulateLocation",
+      "embassy",
+      "embassyLocation",
+      "interviewLocation",
+      "visaLocation",
+      "place",
+      "area",
+      "site",
+      "地点",
+      "城市",
+      "领馆",
+      "领区",
+      "使馆",
+      "面签地点",
+      "签证地点"
     ],
     created: [
       "createdAt",
@@ -120,6 +144,8 @@
               <div class="ca-stat-list" data-ca-stats></div>
               <h3>Visa Types</h3>
               <div class="ca-visa-list" data-ca-visas></div>
+              <h3>Locations</h3>
+              <div class="ca-location-list" data-ca-locations></div>
             </aside>
             <main class="ca-main">
               <div class="ca-chart-stack" data-ca-charts></div>
@@ -167,6 +193,9 @@
       state.rawRecords = [];
       state.records = [];
       state.visaTypes = [];
+      state.locations = [];
+      state.selectedVisaType = null;
+      state.selectedLocation = null;
       state.pullComplete = false;
       state.source = `No cached data for ${timeRangeLabel()}`;
       renderData();
@@ -380,8 +409,12 @@
     state.source = source;
     state.weeks = displayWeeks();
     state.visaTypes = [...new Set(state.records.map(record => record.visaType))].sort();
+    state.locations = [...new Set(state.records.map(record => record.location))].sort((a, b) => a.localeCompare(b));
     if (!state.loading && state.selectedVisaType && !state.visaTypes.includes(state.selectedVisaType)) {
       state.selectedVisaType = null;
+    }
+    if (!state.loading && state.selectedLocation && !state.locations.includes(state.selectedLocation)) {
+      state.selectedLocation = null;
     }
     renderData();
   }
@@ -392,7 +425,9 @@
       records: [...state.records],
       weeks: [...state.weeks],
       visaTypes: [...state.visaTypes],
+      locations: [...state.locations],
       selectedVisaType: state.selectedVisaType,
+      selectedLocation: state.selectedLocation,
       source: state.source,
       pullComplete: state.pullComplete
     };
@@ -419,7 +454,9 @@
     state.records = snapshot.records;
     state.weeks = snapshot.weeks;
     state.visaTypes = snapshot.visaTypes;
+    state.locations = snapshot.locations;
     state.selectedVisaType = snapshot.selectedVisaType;
+    state.selectedLocation = snapshot.selectedLocation;
     state.source = snapshot.source;
     state.pullComplete = snapshot.pullComplete;
   }
@@ -428,6 +465,7 @@
     const record = flatten(input);
     const sourceMonth = String(record.__sourceMonth || "");
     const visaType = cleanVisaType(pick(record, fieldGroups.visaType)) || inferVisaType(record) || "Unknown";
+    const location = cleanLocation(pick(record, fieldGroups.location)) || inferLocation(record) || "Unknown";
     const createdAt = parseDate(pick(record, fieldGroups.created), sourceMonth);
     let clearedAt = parseDate(pick(record, fieldGroups.cleared), sourceMonth);
     const status = String(pick(record, fieldGroups.status) || "").toLowerCase();
@@ -437,7 +475,7 @@
     if (!clearedAt) clearedAt = inferDateFromRecord(record, sourceMonth);
     if (!createdAt && !clearedAt) return null;
     const waitDays = createdAt && clearedAt ? Math.max(0, daysBetween(createdAt, clearedAt)) : null;
-    return { createdAt, clearedAt, visaType, waitDays, raw: input };
+    return { createdAt, clearedAt, visaType, location, waitDays, raw: input };
   }
 
   function dedupeRecords(records) {
@@ -445,6 +483,7 @@
     return records.filter(record => {
       const key = [
         record.visaType,
+        record.location,
         record.createdAt ? isoDate(record.createdAt) : "",
         record.clearedAt ? isoDate(record.clearedAt) : "",
         String(record.raw && record.raw.__rowText || "").slice(0, 180)
@@ -495,11 +534,52 @@
     return String(value).trim().replace(/\s+/g, " ").toUpperCase();
   }
 
+  function inferLocation(record) {
+    return canonicalKnownLocation(Object.values(record).join(" "));
+  }
+
+  function cleanLocation(value) {
+    if (value == null) return "";
+    const text = String(value).trim().replace(/\s+/g, " ");
+    if (!text) return "";
+    return canonicalKnownLocation(text) || titleCaseLocation(text);
+  }
+
+  function canonicalKnownLocation(value) {
+    const normalized = String(value || "").toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]/g, "");
+    const knownLocations = [
+      ["guangzhou", "Guangzhou"],
+      ["广州", "Guangzhou"],
+      ["beijing", "Beijing"],
+      ["北京", "Beijing"],
+      ["shanghai", "Shanghai"],
+      ["上海", "Shanghai"],
+      ["shenyang", "Shenyang"],
+      ["沈阳", "Shenyang"],
+      ["chengdu", "Chengdu"],
+      ["成都", "Chengdu"],
+      ["wuhan", "Wuhan"],
+      ["武汉", "Wuhan"],
+      ["hongkong", "Hong Kong"],
+      ["香港", "Hong Kong"]
+    ];
+    const match = knownLocations.find(([needle]) => normalized.includes(needle));
+    return match ? match[1] : "";
+  }
+
+  function titleCaseLocation(text) {
+    return text
+      .split(/(\s+|-|\/)/)
+      .map(part => /^[a-z]+$/i.test(part) ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : part)
+      .join("");
+  }
+
   function renderData() {
     state.weeks = displayWeeks();
     updateStatus(statusText());
     renderStats();
     renderVisaFilters();
+    renderLocationFilters();
     renderCharts();
     renderMessage();
   }
@@ -507,7 +587,7 @@
   function statusText() {
     if (state.loading) return state.loadingMessage || `Pulling Checkee data for ${timeRangeLabel()}...`;
     if (!state.records.length) return `Click Refresh to load Checkee data for ${timeRangeLabel()}.`;
-    const filterText = state.selectedVisaType ? `, filtered to ${state.selectedVisaType}` : "";
+    const filterText = activeFilterSummary();
     const earliest = earliestLoadedDate();
     const earliestText = earliest ? `; earliest loaded ${isoDate(earliest)}` : "";
     return `${state.records.length.toLocaleString()} records loaded from ${state.source}${earliestText}${filterText}`;
@@ -524,8 +604,20 @@
       <div class="ca-stat"><span>Cleared</span><strong>${cleared.toLocaleString()}</strong></div>
       <div class="ca-stat"><span>Long-wait cleared</span><strong>${longWait.toLocaleString()}</strong></div>
       <div class="ca-stat"><span>Net in range</span><strong>${netInRange == null ? "Pending" : formatSigned(netInRange)}</strong></div>
-      <div class="ca-stat"><span>Filter</span><strong>${escapeHtml(state.selectedVisaType || "All")}</strong></div>
+      <div class="ca-stat"><span>Filter</span><strong>${escapeHtml(activeFilterLabel())}</strong></div>
     `;
+  }
+
+  function activeFilterLabel() {
+    const filters = [state.selectedVisaType, state.selectedLocation].filter(Boolean);
+    return filters.length ? filters.join(" · ") : "All";
+  }
+
+  function activeFilterSummary() {
+    const filters = [];
+    if (state.selectedVisaType) filters.push(state.selectedVisaType);
+    if (state.selectedLocation) filters.push(state.selectedLocation);
+    return filters.length ? `, filtered to ${filters.join(" / ")}` : "";
   }
 
   function renderVisaFilters() {
@@ -550,9 +642,34 @@
     });
   }
 
+  function renderLocationFilters() {
+    const list = document.querySelector("[data-ca-locations]");
+    if (!state.locations.length) {
+      list.innerHTML = `<span class="ca-message">No locations detected.</span>`;
+      return;
+    }
+    list.innerHTML = state.locations
+      .map(location => `
+        <button class="ca-pill" data-ca-location="${escapeAttr(location)}" data-active="${!state.selectedLocation || state.selectedLocation === location}" data-selected="${state.selectedLocation === location}" type="button">
+          ${escapeHtml(location)}
+        </button>
+      `)
+      .join("");
+    list.querySelectorAll("[data-ca-location]").forEach(button => {
+      button.addEventListener("click", () => {
+        const location = button.dataset.caLocation;
+        state.selectedLocation = state.selectedLocation === location ? null : location;
+        renderData();
+      });
+    });
+  }
+
   function filteredRecords() {
-    if (!state.selectedVisaType) return state.records;
-    return state.records.filter(record => record.visaType === state.selectedVisaType);
+    return state.records.filter(record => {
+      if (state.selectedVisaType && record.visaType !== state.selectedVisaType) return false;
+      if (state.selectedLocation && record.location !== state.selectedLocation) return false;
+      return true;
+    });
   }
 
   function renderCharts() {

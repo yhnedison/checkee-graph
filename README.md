@@ -15,6 +15,7 @@ Checkee Graph is a lightweight Chrome extension that adds an expandable analytic
 - Weekly new cases vs cleared cases, shown as grouped bar charts.
 - Weekly net case change for the selected time range, using the range start as zero point and showing the total net change through now.
 - Time range selector: last 6 months, last 1 year, last 2 years, last 5 years, and max.
+- Sidebar filters for visa type and location, including common locations such as Guangzhou and Beijing.
 - Local cache per time range, so the page can show the last successful pull without fetching automatically.
 - Manual refresh only. Data is loaded when you click **Refresh**, not every time the page opens.
 - Newest-to-oldest monthly loading with at least one second between requests.
@@ -37,7 +38,7 @@ Checkee Graph is a lightweight Chrome extension that adds an expandable analytic
 3. Choose a **Time range**.
 4. Click **Refresh** to pull fresh monthly data for the selected range.
 5. Watch the first three charts update while data is loading. The net-change chart updates after the full pull finishes so the total is calculated from complete data.
-6. Click a visa type in the left sidebar to focus that category. Click it again to clear the filter.
+6. Click a visa type or location in the left sidebar to focus that category. Click it again to clear the filter.
 7. Use **Import** to load JSON/CSV data when automatic extraction cannot find records.
 
 ### Data Loading
@@ -63,6 +64,7 @@ The importer accepts JSON or CSV with flexible field names. Useful fields includ
 - `visaType`, `visa_type`, `visa`, `type`
 - `createdAt`, `submitDate`, `checkDate`, `date`
 - `clearedAt`, `clearanceDate`, `clearDate`
+- `location`, `city`, `consulate`, `embassy`, `interviewLocation`
 - `status`
 
 ### Privacy
@@ -108,6 +110,7 @@ Checkee Graph 是一个轻量级 Chrome 扩展，会在 `checkee.info` 页面顶
 - 展示每周新增 case 与 clear case 的对比。
 - 按当前选择的 time range，以起始时间为 0 点，计算每周 case 净增减以及累计净增减。
 - 支持时间范围：最近 6 个月、最近 1 年、最近 2 年、最近 5 年、最大范围。
+- 左侧栏支持按签证类型和地点筛选，例如 Guangzhou、Beijing。
 - 按时间范围保存本地缓存，页面打开时优先展示上次成功拉取的数据。
 - 只在点击 **Refresh** 时刷新数据，不会每次打开页面自动请求。
 - 从最新月份向旧月份拉取，每月至少间隔 1 秒，降低被 throttle 的风险。
@@ -130,7 +133,7 @@ Checkee Graph 是一个轻量级 Chrome 扩展，会在 `checkee.info` 页面顶
 3. 选择 **Time range**。
 4. 点击 **Refresh**，只拉取当前选择时间范围内的月度数据。
 5. 前三张图会在加载过程中实时更新。第四张净增减图会等完整拉取结束后再计算，避免用不完整数据算错总量。
-6. 点击左侧签证类型可只看该类型；再次点击恢复显示全部。
+6. 点击左侧签证类型或地点可只看该类型/地点；再次点击恢复显示全部。
 7. 如果自动解析不到数据，可以使用 **Import** 导入 JSON/CSV。
 
 ### 数据加载
@@ -156,6 +159,7 @@ https://www.checkee.info/main.php?dispdate=YYYY-MM
 - `visaType`, `visa_type`, `visa`, `type`
 - `createdAt`, `submitDate`, `checkDate`, `date`
 - `clearedAt`, `clearanceDate`, `clearDate`
+- `location`, `city`, `consulate`, `embassy`, `interviewLocation`
 - `status`
 
 ### 隐私

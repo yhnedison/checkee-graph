@@ -134,6 +134,10 @@
   margin: 0 0 8px;
 }
 
+.ca-sidebar h3:not(:first-child) {
+  margin-top: 12px;
+}
+
 .ca-stat-list {
   display: grid;
   gap: 8px;
@@ -166,7 +170,8 @@
   margin-top: 2px;
 }
 
-.ca-visa-list {
+.ca-visa-list,
+.ca-location-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
