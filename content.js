@@ -5,6 +5,7 @@
   const CHART_WIDTH = 1040;
   const CHART_HEIGHT = 360;
   const CHART_MARGIN = { top: 34, right: 112, bottom: 46, left: 48 };
+  const WEEK_COLUMN_MAX_WIDTH = 28;
   const COLORS = [
     "#2563eb",
     "#dc2626",
@@ -716,9 +717,11 @@
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
     const weekBand = innerWidth / Math.max(1, state.weeks.length);
+    const weekColumnWidthValue = weekColumnWidth(weekBand);
     const y = value => margin.top + innerHeight - (value / maxValue) * innerHeight;
     const waitY = value => margin.top + innerHeight - (value / waitAxisMax) * innerHeight;
     const groupCenter = index => margin.left + index * weekBand + weekBand / 2;
+    const weekColumnStart = index => groupCenter(index) - weekColumnWidthValue / 2;
     const yTicks = tickValues(maxValue, 5);
     const waitTicks = hasWaitLine ? tickValues(waitAxisMax, 5) : [];
 
@@ -747,7 +750,7 @@
     `;
 
     if (isStacked) {
-      const barWidth = Math.max(3, Math.min(18, weekBand * 0.72));
+      const barWidth = weekColumnWidthValue;
       state.weeks.forEach((week, weekIndex) => {
         let stackBottom = height - margin.bottom;
         visibleSeries.forEach((item, seriesIndex) => {
@@ -755,7 +758,7 @@
           if (!value) return;
           const barHeight = Math.max(1, (value / maxValue) * innerHeight);
           const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-          rect.setAttribute("x", String(groupCenter(weekIndex) - barWidth / 2));
+          rect.setAttribute("x", String(weekColumnStart(weekIndex)));
           rect.setAttribute("y", String(stackBottom - barHeight));
           rect.setAttribute("width", String(barWidth));
           rect.setAttribute("height", String(barHeight));
@@ -769,11 +772,11 @@
         });
       });
     } else {
-      const groupWidth = Math.max(4, weekBand * 0.78);
-      const barGap = 2;
-      const barWidth = Math.max(3, (groupWidth - barGap * Math.max(0, visibleSeries.length - 1)) / Math.max(1, visibleSeries.length));
+      const groupWidth = weekColumnWidthValue;
+      const barGap = groupWidth >= 8 ? 2 : groupWidth >= 4 ? 1 : 0;
+      const barWidth = Math.max(1, (groupWidth - barGap * Math.max(0, visibleSeries.length - 1)) / Math.max(1, visibleSeries.length));
       state.weeks.forEach((week, weekIndex) => {
-        const groupStart = groupCenter(weekIndex) - groupWidth / 2;
+        const groupStart = weekColumnStart(weekIndex);
         visibleSeries.forEach((item, seriesIndex) => {
           const value = item.values[weekIndex];
           if (!value) return;
@@ -906,6 +909,7 @@
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
     const weekBand = innerWidth / Math.max(1, weeks.length);
+    const weekColumnWidthValue = weekColumnWidth(weekBand);
     const domainMin = minValue === maxValue ? -1 : minValue;
     const domainMax = minValue === maxValue ? 1 : maxValue;
     const y = value => margin.top + ((domainMax - value) / Math.max(1, domainMax - domainMin)) * innerHeight;
@@ -929,7 +933,7 @@
       `).join("")}
     `;
 
-    const barWidth = Math.max(5, Math.min(28, weekBand * 0.62));
+    const barWidth = weekColumnWidthValue;
     values.forEach((value, index) => {
       if (!value) return;
       const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -1476,6 +1480,10 @@
 
   function formatMonth(date) {
     return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function weekColumnWidth(weekBand) {
+    return Math.max(2, Math.min(WEEK_COLUMN_MAX_WIDTH, weekBand * 0.72));
   }
 
   function tickValues(maxValue, count) {
