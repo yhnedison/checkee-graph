@@ -698,18 +698,26 @@
     const series = seriesForMetric(metric);
     const visibleSeries = series.filter(item => item.values.some(value => value !== 0));
     const isStacked = metric !== "newVsCleared";
+    const hasWaitOverlay = metric === "clearedByVisa" || metric === "longWaitByVisa";
+    const waitStats = hasWaitOverlay ? waitStatsForWeeks(state.weeks, { longWaitOnly: metric === "longWaitByVisa" }) : [];
+    const hasWaitLine = waitStats.some(stat => stat.average != null);
+    const waitAxisMax = hasWaitLine
+      ? Math.max(1, Math.ceil(Math.max(...waitStats.flatMap(stat => [stat.average, stat.median, stat.p90]).filter(value => value != null))))
+      : 1;
     const maxValue = isStacked
       ? Math.max(1, ...state.weeks.map((_, weekIndex) => visibleSeries.reduce((total, item) => total + item.values[weekIndex], 0)))
       : Math.max(1, ...visibleSeries.flatMap(item => item.values));
     const width = 1040;
     const height = 360;
-    const margin = { top: 14, right: 22, bottom: 46, left: 48 };
+    const margin = { top: 14, right: hasWaitLine ? 96 : 22, bottom: 46, left: 48 };
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
     const weekBand = innerWidth / Math.max(1, state.weeks.length);
     const y = value => margin.top + innerHeight - (value / maxValue) * innerHeight;
+    const waitY = value => margin.top + innerHeight - (value / waitAxisMax) * innerHeight;
     const groupCenter = index => margin.left + index * weekBand + weekBand / 2;
     const yTicks = tickValues(maxValue, 5);
+    const waitTicks = hasWaitLine ? tickValues(waitAxisMax, 5) : [];
 
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
@@ -722,6 +730,13 @@
         <text x="${margin.left - 10}" y="${y(value) + 4}" text-anchor="end" fill="#64748b" font-size="11">${value}</text>
       `).join("")}
       <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${height - margin.bottom}" stroke="#94a3b8" />
+      ${hasWaitLine ? `
+        <line x1="${width - margin.right}" y1="${margin.top}" x2="${width - margin.right}" y2="${height - margin.bottom}" stroke="#f59e0b" />
+        <text x="${width - margin.right}" y="${margin.top - 4}" text-anchor="middle" fill="#b45309" font-size="10" font-weight="700">${escapeHtml(waitAxisLabel(metric))}</text>
+        ${waitTicks.map(value => `
+          <text x="${width - margin.right + 10}" y="${waitY(value) + 4}" text-anchor="start" fill="#b45309" font-size="11">${formatDaysTick(value)}</text>
+        `).join("")}
+      ` : ""}
       <line x1="${margin.left}" y1="${height - margin.bottom}" x2="${width - margin.right}" y2="${height - margin.bottom}" stroke="#94a3b8" />
       ${xLabels().map(item => `
         <text x="${groupCenter(item.index)}" y="${height - 22}" text-anchor="middle" fill="#64748b" font-size="11">${item.label}</text>
@@ -775,6 +790,47 @@
       });
     }
 
+    if (hasWaitLine) {
+      const waitPoints = waitStats.map((stat, index) => ({
+        ...stat,
+        index,
+        x: groupCenter(index),
+        y: stat.average == null ? null : waitY(stat.average)
+      }));
+      waitLineSegments(waitPoints).forEach(segment => {
+        if (segment.length < 2) return;
+        const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        polyline.setAttribute("points", segment.map(point => `${point.x},${point.y}`).join(" "));
+        polyline.setAttribute("fill", "none");
+        polyline.setAttribute("stroke", "#f59e0b");
+        polyline.setAttribute("stroke-width", "2.4");
+        polyline.setAttribute("stroke-linecap", "round");
+        polyline.setAttribute("stroke-linejoin", "round");
+        svg.appendChild(polyline);
+      });
+      waitPoints.forEach(point => {
+        if (point.average == null) return;
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", String(point.x));
+        circle.setAttribute("cy", String(point.y));
+        circle.setAttribute("r", "3.4");
+        circle.setAttribute("fill", "#ffffff");
+        circle.setAttribute("stroke", "#f59e0b");
+        circle.setAttribute("stroke-width", "2");
+        circle.setAttribute("tabindex", "0");
+        circle.dataset.caBar = "true";
+        circle.dataset.tooltip = [
+          waitLineLabel(metric),
+          `${formatWeek(point.week)}`,
+          `Average: ${formatDays(point.average)}`,
+          `Median: ${formatDays(point.median)}`,
+          `P90: ${formatDays(point.p90)}`,
+          `Cases: ${point.count.toLocaleString()}`
+        ].join("\n");
+        svg.appendChild(circle);
+      });
+    }
+
     chart.querySelector("svg")?.remove();
     chart.insertBefore(svg, tooltip);
 
@@ -785,13 +841,20 @@
       bar.addEventListener("blur", hideTooltip);
     });
 
-    document.querySelector(`[data-ca-legend="${metric}"]`).innerHTML = visibleSeries
+    const legendItems = visibleSeries
       .map((item, index) => `
         <span class="ca-legend-item">
           <span class="ca-swatch" style="background:${item.color || colorFor(index)}"></span>${escapeHtml(item.name)}
         </span>
-      `)
-      .join("");
+      `);
+    if (hasWaitLine) {
+      legendItems.push(`
+        <span class="ca-legend-item">
+          <span class="ca-line-swatch" style="background:#f59e0b"></span>${escapeHtml(waitLineLabel(metric))}
+        </span>
+      `);
+    }
+    document.querySelector(`[data-ca-legend="${metric}"]`).innerHTML = legendItems.join("");
 
     function xLabels() {
       if (!state.weeks.length) return [];
@@ -800,6 +863,21 @@
       return state.weeks
         .map((week, index) => ({ index, label: formatWeek(week) }))
         .filter((_, index) => index % step === 0);
+    }
+
+    function waitLineSegments(points) {
+      const segments = [];
+      let current = [];
+      points.forEach(point => {
+        if (point.y == null) {
+          if (current.length) segments.push(current);
+          current = [];
+          return;
+        }
+        current.push(point);
+      });
+      if (current.length) segments.push(current);
+      return segments;
     }
   }
 
@@ -986,6 +1064,41 @@
 
   function countRecords(predicate) {
     return filteredRecords().reduce((total, record) => total + (predicate(record) ? 1 : 0), 0);
+  }
+
+  function waitStatsForWeeks(weeks, options = {}) {
+    return weeks.map(week => waitStatsForWeek(week, options));
+  }
+
+  function waitStatsForWeek(week, options = {}) {
+    const waits = filteredRecords()
+      .filter(record => record.clearedAt && inSameWeek(record.clearedAt, week))
+      .filter(record => !options.longWaitOnly || record.waitDays >= 30)
+      .map(record => record.waitDays)
+      .filter(value => Number.isFinite(value))
+      .sort((a, b) => a - b);
+    if (!waits.length) {
+      return { week, count: 0, average: null, median: null, p90: null };
+    }
+    const average = waits.reduce((total, value) => total + value, 0) / waits.length;
+    return {
+      week,
+      count: waits.length,
+      average,
+      median: percentile(waits, 0.5),
+      p90: percentile(waits, 0.9)
+    };
+  }
+
+  function percentile(sortedValues, fraction) {
+    if (!sortedValues.length) return null;
+    if (sortedValues.length === 1) return sortedValues[0];
+    const index = (sortedValues.length - 1) * fraction;
+    const lower = Math.floor(index);
+    const upper = Math.ceil(index);
+    if (lower === upper) return sortedValues[lower];
+    const weight = index - lower;
+    return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight;
   }
 
   async function importFile(file) {
@@ -1382,10 +1495,18 @@
   }
 
   function titleForMetric(metric) {
-    if (metric === "longWaitByVisa") return "Long-wait (>= 30 days) clearance per week, by visa type";
+    if (metric === "longWaitByVisa") return "Long-wait (>= 30 days) clearance per week, by visa type, with average waiting days";
     if (metric === "newVsCleared") return "New case vs cleared case per week";
     if (metric === "netChangeSinceBase") return `Weekly net case change from ${formatWeek(displayStartDate())}`;
-    return "Case cleared per week, by visa type";
+    return "Case cleared per week, by visa type, with average waiting days";
+  }
+
+  function waitLineLabel(metric) {
+    return metric === "longWaitByVisa" ? "Average Waiting Days (long-wait only)" : "Average Waiting Days";
+  }
+
+  function waitAxisLabel(metric) {
+    return metric === "longWaitByVisa" ? "Avg long-wait days" : "Avg wait days";
   }
 
   function chartTitleForMetric(metric) {
@@ -1404,6 +1525,17 @@
 
   function formatSigned(value) {
     return value > 0 ? `+${value.toLocaleString()}` : value.toLocaleString();
+  }
+
+  function formatDays(value) {
+    if (value == null || !Number.isFinite(value)) return "n/a";
+    const rounded = Math.round(value * 10) / 10;
+    return `${Number.isInteger(rounded) ? rounded.toLocaleString() : rounded.toLocaleString(undefined, { maximumFractionDigits: 1 })} days`;
+  }
+
+  function formatDaysTick(value) {
+    if (!Number.isFinite(value)) return "";
+    return Number.isInteger(value) ? value.toLocaleString() : value.toLocaleString(undefined, { maximumFractionDigits: 1 });
   }
 
   function normalizeHeader(text) {

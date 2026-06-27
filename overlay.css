@@ -242,12 +242,15 @@
   width: 100%;
 }
 
-.ca-chart-wrap rect[data-ca-bar] {
+.ca-chart-wrap rect[data-ca-bar],
+.ca-chart-wrap circle[data-ca-bar] {
   cursor: pointer;
 }
 
 .ca-chart-wrap rect[data-ca-bar]:hover,
-.ca-chart-wrap rect[data-ca-bar]:focus {
+.ca-chart-wrap rect[data-ca-bar]:focus,
+.ca-chart-wrap circle[data-ca-bar]:hover,
+.ca-chart-wrap circle[data-ca-bar]:focus {
   filter: brightness(0.92);
   outline: none;
 }
@@ -281,6 +284,13 @@
   align-items: center;
   display: inline-flex;
   gap: 5px;
+}
+
+.ca-line-swatch {
+  border-radius: 999px;
+  display: inline-block;
+  height: 3px;
+  width: 18px;
 }
 
 .ca-tooltip {
