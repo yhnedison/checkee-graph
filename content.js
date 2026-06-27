@@ -2,6 +2,9 @@
   const ROOT_ID = "checkee-analytics-root";
   const STORAGE_KEY_PREFIX = "checkeeAnalyticsLastPull";
   const START_DATE = new Date(Date.UTC(2008, 11, 1));
+  const CHART_WIDTH = 1040;
+  const CHART_HEIGHT = 360;
+  const CHART_MARGIN = { top: 34, right: 112, bottom: 46, left: 48 };
   const COLORS = [
     "#2563eb",
     "#dc2626",
@@ -707,9 +710,9 @@
     const maxValue = isStacked
       ? Math.max(1, ...state.weeks.map((_, weekIndex) => visibleSeries.reduce((total, item) => total + item.values[weekIndex], 0)))
       : Math.max(1, ...visibleSeries.flatMap(item => item.values));
-    const width = 1040;
-    const height = 360;
-    const margin = { top: hasWaitLine ? 34 : 14, right: hasWaitLine ? 112 : 22, bottom: 46, left: 48 };
+    const width = CHART_WIDTH;
+    const height = CHART_HEIGHT;
+    const margin = CHART_MARGIN;
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
     const weekBand = innerWidth / Math.max(1, state.weeks.length);
@@ -897,9 +900,9 @@
     const total = netChangeTotal();
     const minValue = Math.min(0, ...values);
     const maxValue = Math.max(0, ...values);
-    const width = 1040;
-    const height = 360;
-    const margin = { top: 14, right: 22, bottom: 46, left: 48 };
+    const width = CHART_WIDTH;
+    const height = CHART_HEIGHT;
+    const margin = CHART_MARGIN;
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
     const weekBand = innerWidth / Math.max(1, weeks.length);
